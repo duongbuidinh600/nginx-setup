@@ -1,68 +1,85 @@
-# Nginx Configuration for Docker Services
+# Nginx Reverse Proxy for Backend Services
 
-This is a professional, production-ready nginx setup for your services with best practices including loose coupling, security, and scalability.
+Professional, production-ready nginx setup for proxying Docker services with best practices including loose coupling, security, performance optimization, and scalability.
 
 ## 📋 Architecture Overview
 
 ```
-Cloudflare Tunnel → Nginx (Port 80) → Docker Containers
+Internet → Cloudflare Tunnel → Nginx (Port 80) → Docker Containers
 ```
 
-### Services Configuration
+### Configured Services
 
-| Service | Domain | Backend Port | Container |
-|---------|--------|--------------|-----------|
-| Kafka UI | kafka.duongbd.site | 8080 | kafka-ui |
-| Kibana | kibana.duongbd.site | 5601 | kibana |
-| Elasticsearch | es.duongbd.site | 9200 | elasticsearch |
-| MySQL Adminer | mysql.duongbd.site | 8081 | adminer |
-| Redis Commander | redis.duongbd.site | 8082 | redis-commander |
-| Nexus | nexus.duongbd.site | 8083 | nexus |
-| Test Site | test.duongbd.site | - | Static files |
+| Service | Domain | Backend Port | Container | Purpose |
+|---------|--------|--------------|-----------|---------|
+| Kafka UI | kafka.duongbd.site | 8080 | kafka-ui | Kafka management |
+| Kibana | kibana.duongbd.site | 5601 | kibana | Elasticsearch UI |
+| Elasticsearch | es.duongbd.site | 9200 | elasticsearch | Search/Analytics |
+| MySQL Adminer | mysql.duongbd.site | 8081 | adminer | Database management |
+| Redis Commander | redis.duongbd.site | 8082 | redis-commander | Redis management |
+| Nexus | nexus.duongbd.site | 8083 | nexus | Artifact repository |
+| Test Site | test.duongbd.site | - | Static files | Test/Status page |
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Automated Installation)
 
 ### Prerequisites
 
-- Ubuntu Server (20.04 or later)
-- Docker and Docker Compose installed
-- Cloudflare Tunnel configured
+- Ubuntu Server 20.04+ or Debian 10+
 - Root or sudo access
+- Docker and Docker Compose installed
+- Cloudflare Tunnel configured (optional)
 
-### Installation
+### One-Command Installation
 
-1. **Upload all configuration files to your server:**
-   ```bash
-   # Create a working directory
-   mkdir -p ~/nginx-setup
-   cd ~/nginx-setup
-   
-   # Upload all files here
-   ```
+```bash
+# Download repository or upload files to server
+cd /path/to/nginx-setup-complete
 
-2. **Make the setup script executable:**
-   ```bash
-   chmod +x nginx/install.sh
-   ```
+# Make installation script executable
+chmod +x install-nginx.sh
 
-3. **Run the setup script:**
-   ```bash
-   sudo ./nginx/install.sh
-   ```
+# Run automated installation
+sudo ./install-nginx.sh
+```
 
-4. **Update your Docker services:**
-   ```bash
-   # Backup your current docker-compose.yml
-   cp docker-compose.yml docker-compose.yml.backup
-   
-   # Replace with the new one
-   cp docker-compose.yml /path/to/your/docker/directory/
-   
-   # Restart services
-   cd /path/to/your/docker/directory
-   docker-compose down
-   docker-compose up -d
-   ```
+The script will:
+- ✅ Install nginx (if not already installed)
+- ✅ Backup existing configuration
+- ✅ Copy all configuration files
+- ✅ Enable all sites
+- ✅ Set correct permissions
+- ✅ Test configuration
+- ✅ Start/restart nginx service
+
+### Manual Installation (Alternative)
+
+If you prefer manual control:
+
+```bash
+# 1. Install nginx
+sudo apt update
+sudo apt install -y nginx
+
+# 2. Backup existing config
+sudo cp -r /etc/nginx /etc/nginx.backup-$(date +%Y%m%d)
+
+# 3. Copy configuration files
+sudo cp nginx/nginx.conf /etc/nginx/
+sudo cp nginx/conf.d/upstreams.conf /etc/nginx/conf.d/
+sudo cp -r nginx/snippets/* /etc/nginx/snippets/
+sudo cp nginx/sites-available/*.conf /etc/nginx/sites-available/
+
+# 4. Enable sites
+sudo rm -f /etc/nginx/sites-enabled/default
+cd /etc/nginx/sites-available
+for conf in *.conf; do
+    sudo ln -sf /etc/nginx/sites-available/$conf /etc/nginx/sites-enabled/$conf
+done
+
+# 5. Test and restart
+sudo nginx -t
+sudo systemctl restart nginx
+```
 
 ## 📁 File Structure
 
@@ -159,6 +176,65 @@ limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;      # API endpoints
 limit_req_zone $binary_remote_addr zone=auth:10m rate=5r/s;      # Auth/admin
 ```
 
+## ✅ Configuration Testing
+
+### Test Configuration Syntax
+
+Use the included test script for comprehensive configuration validation:
+
+```bash
+# Make test script executable
+chmod +x test-nginx-config.sh
+
+# Run configuration test
+./test-nginx-config.sh
+
+# Or test with automatic reload
+./test-nginx-config.sh --reload
+
+# Or test with restart
+./test-nginx-config.sh --restart
+```
+
+### Manual Testing
+
+```bash
+# Test nginx syntax
+sudo nginx -t
+
+# Reload configuration (zero-downtime)
+sudo systemctl reload nginx
+
+# Restart nginx (full restart)
+sudo systemctl restart nginx
+
+# Check service status
+sudo systemctl status nginx
+```
+
+### Verify Configuration
+
+After installation, verify each component:
+
+```bash
+# 1. Check nginx is running
+sudo systemctl is-active nginx
+
+# 2. Verify sites are enabled
+ls -la /etc/nginx/sites-enabled/
+
+# 3. Test each health endpoint
+curl http://localhost/health                    # Default site
+curl http://kafka.duongbd.site/health          # If DNS configured
+curl http://localhost -H "Host: kafka.duongbd.site"  # Without DNS
+
+# 4. Check upstream connectivity
+curl localhost:8080  # Kafka UI
+curl localhost:5601  # Kibana
+curl localhost:9200  # Elasticsearch
+# ... test other backends
+```
+
 ## 📊 Monitoring & Troubleshooting
 
 ### View Logs
@@ -204,7 +280,18 @@ curl http://es.duongbd.site/health
 
 ### Common Issues
 
-**1. 502 Bad Gateway**
+**1. Duplicate Directive Errors**
+```bash
+# Error: "proxy_buffering" directive is duplicate
+# Cause: Buffering settings defined in both snippet and site config
+# Fix: Already fixed in this version - buffering settings removed from snippets
+
+# Verify fix
+grep -r "proxy_buffering" /etc/nginx/snippets/    # Should not return results
+grep -r "proxy_buffering" /etc/nginx/sites-available/  # Should show per-site settings
+```
+
+**2. 502 Bad Gateway**
 ```bash
 # Check if Docker containers are running
 docker ps
