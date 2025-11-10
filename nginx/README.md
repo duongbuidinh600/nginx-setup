@@ -1,28 +1,10 @@
-# Nginx Reverse Proxy Setup for Docker Services
+# Nginx Configuration Module
 
-A production-ready, modular Nginx configuration for reverse proxying Docker services with best practices, loose coupling, and maintainability.
+## 📁 Configuration Files
 
-## 📋 Overview
+This directory contains the complete Nginx configuration for the Docker services setup.
 
-This setup provides:
-- **Modular configuration** - Each service has its own configuration file
-- **Loose coupling** - Easy to add, remove, or modify services independently
-- **Best practices** - Security headers, proper buffering, timeouts, and logging
-- **High performance** - Optimized worker processes, connections, and caching
-- **Easy management** - Automated scripts for installation and maintenance
-
-## 🏗️ Architecture
-
-```
-Cloudflare Tunnel (port 80)
-          ↓
-    Nginx (localhost:80)
-          ↓
-    ┌─────┴──────┬─────────┬──────────┬─────────┬────────┐
-    ↓            ↓         ↓          ↓         ↓        ↓
-Kafka UI    Kibana    Elasticsearch  Adminer  Redis   Nexus
-(:8080)     (:5601)      (:9200)    (:8081) (:8082) (:8083)
-```
+**📖 Main Documentation:** See `../README.md` for complete setup instructions and usage guide.
 
 ## 📁 Directory Structure
 

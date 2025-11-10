@@ -42,12 +42,12 @@ Cloudflare Tunnel → Nginx (Port 80) → Docker Containers
 
 2. **Make the setup script executable:**
    ```bash
-   chmod +x setup-nginx.sh
+   chmod +x nginx/install.sh
    ```
 
 3. **Run the setup script:**
    ```bash
-   sudo ./setup-nginx.sh
+   sudo ./nginx/install.sh
    ```
 
 4. **Update your Docker services:**
