@@ -280,15 +280,21 @@ curl http://es.duongbd.site/health
 
 ### Common Issues
 
-**1. Duplicate Directive Errors**
+**1. Duplicate Directive Errors** ✅ FIXED
 ```bash
-# Error: "proxy_buffering" directive is duplicate
-# Cause: Buffering settings defined in both snippet and site config
-# Fix: Already fixed in this version - buffering settings removed from snippets
+# Common errors:
+# - "proxy_buffering" directive is duplicate
+# - "proxy_connect_timeout" directive is duplicate
+# - "proxy_read_timeout" directive is duplicate
+
+# ✅ Solution: All proxy directives removed from snippets
+# ✅ Each site config has complete, explicit settings
 
 # Verify fix
-grep -r "proxy_buffering" /etc/nginx/snippets/    # Should not return results
-grep -r "proxy_buffering" /etc/nginx/sites-available/  # Should show per-site settings
+grep -r "proxy_" /etc/nginx/snippets/    # Should only show headers
+grep -r "proxy_connect_timeout" /etc/nginx/sites-available/  # Should show all sites
+
+# See FIXES_APPLIED.md for complete details
 ```
 
 **2. 502 Bad Gateway**
