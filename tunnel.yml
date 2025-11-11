@@ -1,0 +1,63 @@
+tunnel: d46bfa9f-b5ef-4393-8191-dc058a9577db
+credentials-file: /home/boi/.cloudflared/d46bfa9f-b5ef-4393-8191-dc058a9577db.json
+ingress:
+  # SSH service - direct routing (bypasses Traefik)
+  - hostname: ssh.duongbd.site
+    service: ssh://localhost:22
+
+  # MySQL database - TCP proxy for Spring Boot connections
+  - hostname: db.duongbd.site
+    service: tcp://localhost:3306
+
+  # Redis database - TCP proxy for Spring Boot connections
+  - hostname: cache.duongbd.site
+    service: tcp://localhost:6379
+
+  - hostname: kafka.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: kibana.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: es.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: mysql.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: redis.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: nexus.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Test/development subdomain
+  - hostname: test.duongbd.site
+    service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Catch-all rule - route to Traefik for handling
+  - service: http://localhost:80
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
