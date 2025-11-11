@@ -13,7 +13,7 @@ This guide shows how to configure Spring Boot applications to connect to MySQL a
 ### application.properties
 ```properties
 # MySQL Database Configuration
-spring.datasource.url=jdbc:mysql://db.duongbd.site:3306/scangoo
+spring.datasource.url=jdbc:mysql://db.duongbd.site:3306/scangoo?connectTimeout=60000&socketTimeout=300000&autoReconnect=true&maxReconnects=3
 spring.datasource.username=scangoo
 spring.datasource.password=Duong02vodoi
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
@@ -23,28 +23,34 @@ spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
 
-# Connection Pool (HikariCP)
+# Connection Pool (HikariCP) - Optimized for Cloudflare Tunnel
 spring.datasource.hikari.maximum-pool-size=10
 spring.datasource.hikari.minimum-idle=5
-spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.connection-timeout=60000
 spring.datasource.hikari.idle-timeout=600000
 spring.datasource.hikari.max-lifetime=1800000
+spring.datasource.hikari.keepalive-time=300000
+spring.datasource.hikari.validation-timeout=5000
+spring.datasource.hikari.leak-detection-threshold=60000
 ```
 
 ### application.yml
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://db.duongbd.site:3306/scangoo
+    url: jdbc:mysql://db.duongbd.site:3306/scangoo?connectTimeout=60000&socketTimeout=300000&autoReconnect=true&maxReconnects=3
     username: scangoo
     password: Duong02vodoi
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
-      connection-timeout: 30000
+      connection-timeout: 60000
       idle-timeout: 600000
       max-lifetime: 1800000
+      keepalive-time: 300000
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
 
   jpa:
     hibernate:
@@ -245,19 +251,104 @@ spring.data.redis.port=${REDIS_PORT:6379}
 
 ## Troubleshooting
 
-### Connection Timeout
-- Check Cloudflare Tunnel is running
+### MySQL Operation Timeout (Fixed)
+
+**Problem**: Operations timeout when connecting from remote machines through Cloudflare Tunnel
+
+**Root Causes**:
+1. MySQL default `wait_timeout` (28800s/8h) but `net_read_timeout`/`net_write_timeout` too short (30s)
+2. Cloudflare Tunnel TCP connections dropping idle connections
+3. HikariCP connection pool not sending keepalive packets
+
+**Solutions Applied**:
+
+**1. MySQL Server Timeout Configuration** (docker-compose.yml):
+```yaml
+--wait_timeout=28800          # 8 hours session timeout
+--interactive_timeout=28800   # 8 hours interactive timeout
+--net_read_timeout=300        # 5 minutes read timeout
+--net_write_timeout=300       # 5 minutes write timeout
+--max_allowed_packet=256M     # Large packet support
+--connect_timeout=60          # 60 seconds initial connection
+```
+
+**2. Cloudflare Tunnel TCP Keepalive** (tunnel.yml):
+```yaml
+originRequest:
+  connectTimeout: 60s         # Initial TCP connection timeout
+  tcpKeepAlive: 30s          # Send keepalive every 30 seconds
+  keepAliveConnections: 100   # Maintain connection pool
+  noHappyEyeballs: true      # Disable IPv6 fallback for stability
+```
+
+**3. Spring Boot JDBC URL Parameters**:
+```properties
+jdbc:mysql://db.duongbd.site:3306/scangoo?connectTimeout=60000&socketTimeout=300000&autoReconnect=true&maxReconnects=3
+```
+- `connectTimeout=60000`: 60s initial connection
+- `socketTimeout=300000`: 5 minutes socket read timeout
+- `autoReconnect=true`: Auto-reconnect on connection loss
+- `maxReconnects=3`: Retry 3 times before failing
+
+**4. HikariCP Connection Pool Keepalive**:
+```properties
+spring.datasource.hikari.keepalive-time=300000    # 5 minutes keepalive
+spring.datasource.hikari.connection-timeout=60000  # 60s acquire timeout
+spring.datasource.hikari.max-lifetime=1800000      # 30 minutes max connection life
+```
+
+### Connection Timeout (General)
+- Check Cloudflare Tunnel is running: `sudo systemctl status cloudflared`
 - Verify DNS records for db.duongbd.site and cache.duongbd.site
-- Increase connection timeout in application.properties
+- Check tunnel logs: `sudo journalctl -u cloudflared -f`
+- Verify local MySQL is accessible: `mysql -h 127.0.0.1 -P 3306 -u scangoo -p`
 
 ### MySQL Access Denied
 - Verify username/password
 - Check MySQL user has correct host permissions: `scangoo@%` or `scangoo@db.duongbd.site`
+- Grant remote access:
+  ```sql
+  GRANT ALL PRIVILEGES ON scangoo.* TO 'scangoo'@'%' IDENTIFIED BY 'Duong02vodoi';
+  FLUSH PRIVILEGES;
+  ```
 
 ### Redis Connection Refused
-- Ensure Redis container is running
+- Ensure Redis container is running: `docker ps | grep redis`
 - Check Redis is not protected by password (or add password to config)
 - Verify tunnel.yml has correct Redis port mapping
+- Test local Redis: `redis-cli -h 127.0.0.1 -p 6379 ping`
+
+### Testing Connection from Remote Machine
+
+**MySQL Connection Test**:
+```bash
+# From remote Spring Boot server
+mysql -h db.duongbd.site -P 3306 -u scangoo -p scangoo
+
+# Run a long query to test timeout
+mysql -h db.duongbd.site -P 3306 -u scangoo -p scangoo -e "SELECT SLEEP(60);"
+```
+
+**Redis Connection Test**:
+```bash
+# From remote Spring Boot server
+redis-cli -h cache.duongbd.site -p 6379 ping
+```
+
+### Performance Monitoring
+
+**Enable MySQL Slow Query Log**:
+```sql
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 2;
+```
+
+**Monitor Active Connections**:
+```sql
+SHOW PROCESSLIST;
+SHOW STATUS LIKE 'Threads_connected';
+SHOW VARIABLES LIKE '%timeout%';
+```
 
 ## Architecture Flow
 

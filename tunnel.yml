@@ -8,10 +8,20 @@ ingress:
   # MySQL database - TCP proxy for Spring Boot connections
   - hostname: db.duongbd.site
     service: tcp://localhost:3306
+    originRequest:
+      connectTimeout: 60s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      noHappyEyeballs: true
 
   # Redis database - TCP proxy for Spring Boot connections
   - hostname: cache.duongbd.site
     service: tcp://localhost:6379
+    originRequest:
+      connectTimeout: 30s
+      tcpKeepAlive: 30s
+      keepAliveConnections: 100
+      noHappyEyeballs: true
 
   - hostname: kafka.duongbd.site
     service: http://localhost:80

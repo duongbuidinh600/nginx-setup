@@ -155,6 +155,12 @@ services:
       --innodb_log_file_size=256M
       --innodb_flush_log_at_trx_commit=2
       --innodb_flush_method=O_DIRECT
+      --wait_timeout=28800
+      --interactive_timeout=28800
+      --net_read_timeout=300
+      --net_write_timeout=300
+      --max_allowed_packet=256M
+      --connect_timeout=60
     volumes:
       - mysql-data:/var/lib/mysql
       - mysql-config:/etc/mysql/conf.d
