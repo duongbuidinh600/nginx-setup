@@ -138,7 +138,8 @@ services:
     hostname: mysql
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3306:3306"
+      - "[::]:3306:3306"  # IPv6 binding
+      - "0.0.0.0:3306:3306"  # IPv4 binding (optional)
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: scangoo
@@ -173,6 +174,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
 
   adminer:
     image: adminer:latest
